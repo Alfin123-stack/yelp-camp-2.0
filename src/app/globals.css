@@ -1,0 +1,314 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f8fafc;
+  --foreground: #0f172a;
+
+  /* Premium forest-green scale, used by the landing page sections
+     (src/components/landing/) and free to reuse anywhere else that wants
+     the elegant/dark-green treatment instead of the app's default emerald. */
+  --color-forest-50: #eef5f1;
+  --color-forest-100: #d7e8de;
+  --color-forest-200: #b0d1bd;
+  --color-forest-300: #82b499;
+  --color-forest-400: #57967a;
+  --color-forest-500: #3c7a61;
+  --color-forest-600: #2c6249;
+  --color-forest-700: #234e3b;
+  --color-forest-800: #1a3c2d;
+  --color-forest-900: #0f2b20;
+  --color-forest-950: #081a14;
+
+  /* Warm champagne-gold accent — used sparingly for a premium touch. */
+  --color-gold-100: #f6ecd4;
+  --color-gold-200: #ecd9ac;
+  --color-gold-300: #dfc07d;
+  --color-gold-400: #cba458;
+  --color-gold-500: #b38b42;
+  --color-gold-600: #93702f;
+
+  /* Warm cream neutrals — softer than plain white/slate for premium sections. */
+  --color-cream-50: #fdfbf6;
+  --color-cream-100: #faf8f3;
+  --color-cream-200: #f2ede0;
+
+  --font-sans: var(--font-inter);
+  --font-serif: var(--font-fraunces);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  --color-forest-50: var(--color-forest-50);
+  --color-forest-100: var(--color-forest-100);
+  --color-forest-200: var(--color-forest-200);
+  --color-forest-300: var(--color-forest-300);
+  --color-forest-400: var(--color-forest-400);
+  --color-forest-500: var(--color-forest-500);
+  --color-forest-600: var(--color-forest-600);
+  --color-forest-700: var(--color-forest-700);
+  --color-forest-800: var(--color-forest-800);
+  --color-forest-900: var(--color-forest-900);
+  --color-forest-950: var(--color-forest-950);
+
+  --color-gold-100: var(--color-gold-100);
+  --color-gold-200: var(--color-gold-200);
+  --color-gold-300: var(--color-gold-300);
+  --color-gold-400: var(--color-gold-400);
+  --color-gold-500: var(--color-gold-500);
+  --color-gold-600: var(--color-gold-600);
+
+  --color-cream-50: var(--color-cream-50);
+  --color-cream-100: var(--color-cream-100);
+  --color-cream-200: var(--color-cream-200);
+
+  /* Overrides Tailwind's built-in font-sans / font-serif utilities so
+     landing sections can just use `font-serif` / `font-sans` directly. */
+  --font-sans: var(--font-sans);
+  --font-serif: var(--font-serif);
+
+  /* Radix Accordion (mobile nav in navbar.tsx) animates height, which needs
+     a real @keyframes pair — Tailwind's h-auto transition can't tween a
+     "from 0" starting point on its own. */
+  --animate-accordion-down: accordion-down 0.2s ease-out;
+  --animate-accordion-up: accordion-up 0.2s ease-out;
+}
+
+@keyframes accordion-down {
+  from {
+    height: 0;
+  }
+  to {
+    height: var(--radix-accordion-content-height);
+  }
+}
+
+@keyframes accordion-up {
+  from {
+    height: var(--radix-accordion-content-height);
+  }
+  to {
+    height: 0;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family:
+    var(--font-sans),
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    Roboto,
+    Helvetica,
+    Arial,
+    sans-serif;
+}
+
+/* Pulsing ring behind the custom marker pin on the campground detail map
+   (show-map.tsx). Plain @keyframes/class instead of a Tailwind utility
+   because the marker's HTML is injected straight into the MapTiler map's
+   DOM, outside Next.js's own render tree, so Tailwind's class scanner never
+   sees it and would purge an arbitrary utility in production. */
+@keyframes map-pulse {
+  0% {
+    transform: scale(0.8);
+    opacity: 0.45;
+  }
+  100% {
+    transform: scale(1.9);
+    opacity: 0;
+  }
+}
+
+/* ==========================================================================
+   Map loading skeleton
+   Shown on the ClusterMap / show-map container while MapTiler's tiles are
+   still loading, so the campground list doesn't open onto a flat blank div.
+   Requires the consuming component to toggle a `map-loading` class off once
+   the map's `load` event fires (a simple isLoading useState is enough) —
+   the CSS alone won't animate anything until that class is applied.
+   ========================================================================== */
+.map-loading {
+  position: relative;
+  background: linear-gradient(
+    100deg,
+    var(--color-forest-50) 30%,
+    var(--color-gold-100) 50%,
+    var(--color-forest-50) 70%
+  );
+  background-size: 200% 100%;
+  animation: map-shimmer 1.6s ease-in-out infinite;
+}
+
+@keyframes map-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .map-loading {
+    animation: none;
+    background: var(--color-forest-50);
+  }
+}
+
+/* ==========================================================================
+   Location-picker map (CampgroundForm)
+   Unlike the browse map — where a click zooms into a cluster — a click
+   here drops a pin, so it gets its own cursor affordance rather than
+   sharing the browse map's default pointer.
+   ========================================================================== */
+.map-picker .maplibregl-canvas {
+  cursor: crosshair;
+}
+
+/* Drop-in for the custom pin marker CampgroundForm places on click.
+   Plain @keyframes/class, not a Tailwind utility, because
+   maptilersdk.Marker injects this element straight into the map's DOM
+   outside Next.js's own render tree — same reasoning as .forest-popup. */
+.campground-form-pin {
+  animation: pin-drop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transform-origin: bottom center;
+}
+
+@keyframes pin-drop {
+  0% {
+    transform: translateY(-14px) scale(0.6);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .campground-form-pin {
+    animation: none;
+  }
+}
+
+/* ==========================================================================
+   MapLibre navigation controls (zoom +/-, compass)
+   Restyled from MapLibre's plain white/blue default so they read as part of
+   the same card language as the map frame and popups, instead of generic
+   library chrome dropped on top of the design.
+   ========================================================================== */
+.maplibregl-ctrl-group {
+  background: var(--color-cream-50);
+  border: 1px solid var(--color-forest-100);
+  border-radius: 10px;
+  box-shadow: 0 4px 14px rgba(15, 43, 32, 0.12);
+  overflow: hidden;
+}
+
+.maplibregl-ctrl-group button {
+  background: transparent;
+  transition: background-color 0.15s ease;
+}
+
+.maplibregl-ctrl-group button:hover {
+  background: var(--color-forest-50);
+}
+
+.maplibregl-ctrl-group button:not(:first-child) {
+  border-top: 1px solid var(--color-forest-100);
+}
+
+.maplibregl-ctrl-group button:focus-visible {
+  outline: 2px solid var(--color-gold-400);
+  outline-offset: -2px;
+}
+
+/* MapLibre's zoom/compass glyphs are baked-in raster/SVG background images,
+   not currentColor-aware icon fonts, so recoloring them means filtering the
+   whole icon rather than setting a color property. This approximates
+   forest-900 from the default dark grey. */
+.maplibregl-ctrl-icon {
+  filter: invert(12%) sepia(28%) saturate(1200%) hue-rotate(115deg) brightness(90%) contrast(92%);
+}
+
+/* ==========================================================================
+   MapLibre attribution control
+   Same idea — the default is a plain white pill that reads as unstyled
+   library UI sitting on top of the themed map card.
+   ========================================================================== */
+.maplibregl-ctrl-attrib {
+  background: rgba(253, 251, 246, 0.85);
+  border-radius: 8px 0 0 0;
+  font-size: 11px;
+  color: var(--color-forest-700);
+}
+
+.maplibregl-ctrl-attrib a {
+  color: var(--color-forest-600);
+}
+
+.maplibregl-ctrl-attrib a:hover {
+  color: var(--color-forest-800);
+}
+
+/* ==========================================================================
+   Forest/gold themed popup (cluster-map.tsx + show-map.tsx)
+   Overrides MapLibre's default white-box-with-white-tip styling by
+   reaching into the map's injected DOM, the same way those components
+   already build the popup's inner HTML.
+   ========================================================================== */
+.forest-popup .maplibregl-popup-content {
+  background: var(--color-cream-50);
+  border: 1px solid var(--color-forest-100);
+  border-radius: 14px;
+  /* Popup content bleeds a photo to the card edge via a negative margin
+     (see cluster-map.tsx / show-map.tsx); without this the photo's square
+     corners poke out past the popup's own rounded corners instead of being
+     clipped to match them. */
+  overflow: hidden;
+  box-shadow: 0 12px 28px rgba(15, 43, 32, 0.18);
+  padding: 12px 14px;
+}
+
+.forest-popup .maplibregl-popup-tip {
+  border-top-color: var(--color-cream-50) !important;
+}
+
+.forest-popup .maplibregl-popup-close-button {
+  color: var(--color-forest-500);
+  font-size: 16px;
+  padding: 2px 6px;
+}
+
+/* Subtle photo zoom on hover/focus so the card reads as tappable, matching
+   the hover treatment CampgroundCard already uses in the grid. Only
+   transform/transition are set here — the inline style on the <img> only
+   fixes width/height/object-fit, so there's no specificity conflict. */
+.forest-popup .maplibregl-popup-content a img {
+  transition: transform 0.3s ease;
+}
+
+.forest-popup .maplibregl-popup-content a:hover img {
+  transform: scale(1.05);
+}
+
+.forest-popup .maplibregl-popup-content a:focus-visible {
+  outline: 2px solid var(--color-gold-400);
+  outline-offset: 2px;
+  border-radius: 14px;
+}
+
+/* Keeps the description to two lines inside the fixed-width popup so a long
+   campground description can't push the popup taller than its neighbours
+   or overflow the 220px card. */
+.forest-popup .maplibregl-popup-content a p.forest-popup-desc {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
