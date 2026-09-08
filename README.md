@@ -129,3 +129,4 @@ anything, since the placeholder was never uploaded there.
   ~30k-city dataset the original Express app's `seeds/cities.json` had) —
   extend `cities` in `scripts/seed.ts` if you want more geographic variety.
 # yelp-camp-2.0
+# yelp-camp-2.0
