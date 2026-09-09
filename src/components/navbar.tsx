@@ -5,6 +5,7 @@ import NavAuthLinks from "@/components/nav-auth-links";
 import MobileAuthLinks from "@/components/mobile-auth-links";
 import NavCampgroundsMenu from "@/components/nav-campgrounds-menu";
 import MobileNav from "@/components/mobile-nav";
+import NavSavedLink from "./nav-saved-link";
 
 // Static placeholders shown while the session is being resolved, sized to
 // roughly match the real content so there's no layout shift when it swaps
@@ -37,11 +38,22 @@ function NavCampgroundsMenuFallback() {
   );
 }
 
+// Same reason as above — <NavSavedLink> also reads usePathname() for its
+// active state.
+function NavSavedLinkFallback() {
+  return (
+    <span
+      className="h-4 w-16 animate-pulse rounded bg-forest-800"
+      aria-hidden="true"
+    />
+  );
+}
+
 // Static shell: no request-time data is read here, so this (and therefore
-// the pages that render it) can be prerendered. <NavCampgroundsMenu> reads
-// the route and <NavAuthLinks>/<MobileAuthLinks> read the session — all
-// three are isolated behind their own boundary so the navbar itself stays
-// server-rendered.
+// the pages that render it) can be prerendered. <NavCampgroundsMenu> and
+// <NavSavedLink> read the route, <NavAuthLinks>/<MobileAuthLinks> read the
+// session — all isolated behind their own boundary so the navbar itself
+// stays server-rendered.
 export default function Navbar() {
   return (
     <header className="sticky top-0 z-40 border-b border-forest-800/60 bg-forest-950/90 backdrop-blur">
@@ -56,12 +68,16 @@ export default function Navbar() {
           YelpCamp
         </Link>
 
-        {/* Desktop: mega-menu + CTA + auth. Hidden below md — the navbar
-            had no responsive collapse before, so this is the first real
-            mobile nav for the app. */}
+        {/* Desktop: mega-menu + saved link + CTA + auth. Hidden below md —
+            the navbar had no responsive collapse before, so this is the
+            first real mobile nav for the app. */}
         <div className="hidden items-center gap-6 text-sm font-medium md:flex">
           <Suspense fallback={<NavCampgroundsMenuFallback />}>
             <NavCampgroundsMenu />
+          </Suspense>
+
+          <Suspense fallback={<NavSavedLinkFallback />}>
+            <NavSavedLink />
           </Suspense>
 
           {/* Primary action gets its own pill treatment instead of a plain
@@ -84,7 +100,11 @@ export default function Navbar() {
             the mega-menu links, the CTA, and auth all together. The auth
             section is its own <Suspense> boundary (like <NavAuthLinks>
             above) so this per-request read doesn't force the whole navbar
-            — and therefore the static homepage — to render dynamically. */}
+            — and therefore the static homepage — to render dynamically.
+
+            NOTE: <NavSavedLink> is not wired into this sheet yet — pending
+            the current mobile-nav.tsx content so it lands in the right
+            spot instead of guessing at its structure. */}
         <div className="md:hidden">
           <MobileNav
             authSlot={

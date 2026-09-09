@@ -2,7 +2,11 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { Pencil } from "lucide-react";
-import { getCampgroundById, getRelatedCampgrounds } from "@/lib/actions/campgrounds";
+import {
+  getCampgroundById,
+  getRelatedCampgrounds,
+  isCampgroundSaved,
+} from "@/lib/actions/campgrounds";
 import { auth } from "@/auth";
 import { Button } from "@/components/ui/button";
 import { CampgroundDetailHero } from "@/components/campground-detail-hero";
@@ -59,8 +63,12 @@ export default async function CampgroundShowPage({ params }: PageProps) {
       : null;
 
   // Fetched alongside the review/author data the hero needs — not blocking
-  // on it, since the related grid renders as its own section further down.
-  const related = await getRelatedCampgrounds(campground._id, 4);
+  // on each other, since related campgrounds and the saved-heart state are
+  // independent reads.
+  const [related, isSaved] = await Promise.all([
+    getRelatedCampgrounds(campground._id, 4),
+    session?.user ? isCampgroundSaved(session.user.id, campground._id) : Promise.resolve(false),
+  ]);
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -104,6 +112,8 @@ export default async function CampgroundShowPage({ params }: PageProps) {
                 { label: "Campground", href: "/campgrounds" },
                 { label: campground.title, href: `/campgrounds/${campground._id}` },
               ]}
+              campgroundId={campground._id}
+              initialSaved={isSaved}
               title={campground.title}
               location={campground.location}
               price={campground.price}

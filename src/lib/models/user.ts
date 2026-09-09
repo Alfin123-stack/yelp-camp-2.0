@@ -5,6 +5,7 @@ export interface IUser {
   email: string;
   username: string;
   password: string;
+  savedCampgrounds: mongoose.Types.ObjectId[];
 }
 
 const UserSchema = new Schema<IUser>({
@@ -22,6 +23,12 @@ const UserSchema = new Schema<IUser>({
     type: String,
     required: true,
   },
+  savedCampgrounds: [
+    {
+      type: Schema.Types.ObjectId,
+      ref: "Campground",
+    },
+  ],
 });
 
 const User = models.User || model<IUser>("User", UserSchema);

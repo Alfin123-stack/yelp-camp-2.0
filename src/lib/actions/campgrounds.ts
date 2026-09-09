@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { connectDB } from "@/lib/db";
 import Campground from "@/lib/models/campground";
+import User from "@/lib/models/user";
 import { campgroundSchema } from "@/lib/validations/schemas";
 import { uploadImageToCloudinary, deleteImageFromCloudinary } from "@/lib/cloudinary";
 import { geocodeLocation } from "@/lib/maptiler";
@@ -77,6 +78,68 @@ export async function getRelatedCampgrounds(excludeId: string, limit = 4) {
     CampgroundData,
     "_id" | "title" | "location" | "price" | "images"
   >[];
+}
+
+// Full listing for the /saved page — every campground the signed-in user
+// has saved, cheapest fields only (same projection as getRelatedCampgrounds)
+// since the grid there only ever renders a thumbnail card. Returns []
+// for signed-out visitors rather than throwing — the page itself is what
+// enforces the auth redirect.
+export async function getSavedCampgrounds() {
+  const session = await auth();
+  if (!session?.user) return [];
+
+  await connectDB();
+  const user = await User.findById(session.user.id, "savedCampgrounds")
+    .populate({
+      path: "savedCampgrounds",
+      select: "title location price images",
+      options: { sort: { _id: -1 } },
+    })
+    .lean();
+
+  if (!user?.savedCampgrounds) return [];
+  return JSON.parse(JSON.stringify(user.savedCampgrounds)) as Pick<
+    CampgroundData,
+    "_id" | "title" | "location" | "price" | "images"
+  >[];
+}
+
+// Whether the signed-in user has this campground saved — used on the detail
+// page to seed the heart button's initial state server-side (so it's
+// correct on first paint, no client fetch/flash needed).
+export async function isCampgroundSaved(userId: string, campgroundId: string) {
+  await connectDB();
+  const match = await User.exists({ _id: userId, savedCampgrounds: campgroundId });
+  return Boolean(match);
+}
+
+// Toggles a campground in/out of the signed-in user's saved list. Uses
+// $addToSet/$pull directly rather than loading + mutating the document, so
+// there's no need to fight Mongoose's ObjectId-vs-string typing on the
+// array and the update is a single atomic write.
+export async function toggleSaveCampground(campgroundId: string) {
+  const session = await auth();
+  if (!session?.user) {
+    return { error: "You must be signed in to save a campground.", saved: false };
+  }
+
+  await connectDB();
+  const alreadySaved = await User.exists({
+    _id: session.user.id,
+    savedCampgrounds: campgroundId,
+  });
+
+  await User.findByIdAndUpdate(session.user.id, {
+    [alreadySaved ? "$pull" : "$addToSet"]: { savedCampgrounds: campgroundId },
+  });
+
+  // The saved-page route doesn't exist yet — revalidating it now is
+  // harmless and means it'll already be wired up once that page lands.
+  revalidatePath(`/campgrounds/${campgroundId}`);
+  revalidatePath("/saved");
+
+  return { saved: !alreadySaved };
 }
 
 export async function createCampground(

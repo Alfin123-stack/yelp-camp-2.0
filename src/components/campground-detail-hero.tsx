@@ -3,6 +3,8 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ChevronRight,
@@ -17,6 +19,7 @@ import {
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { toggleSaveCampground } from "@/lib/actions/campgrounds";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
@@ -36,6 +39,10 @@ interface CampgroundHost {
 
 export interface CampgroundDetailHeroProps {
   breadcrumbs: BreadcrumbItem[];
+  /** Needed to toggle it in/out of the signed-in user's saved list. */
+  campgroundId: string;
+  /** Whether the current user already has this saved — computed server-side. */
+  initialSaved: boolean;
   title: string;
   location: string;
   price: number;
@@ -73,6 +80,8 @@ function StarRating({ rating, className }: { rating: number; className?: string 
 
 export function CampgroundDetailHero({
   breadcrumbs,
+  campgroundId,
+  initialSaved,
   title,
   location,
   price,
@@ -85,8 +94,58 @@ export function CampgroundDetailHero({
   mapHref = "#map",
   actions,
 }: CampgroundDetailHeroProps) {
+  const router = useRouter();
   const [activeImage, setActiveImage] = React.useState(0);
+  const [isSaved, setIsSaved] = React.useState(initialSaved);
+  const [isSaving, startSaveTransition] = React.useTransition();
   const hasImages = images.length > 0;
+
+  // Optimistic toggle: flip the heart immediately, then reconcile with what
+  // the server actually did. If the user isn't signed in, the action
+  // returns an error instead of touching the database — revert the heart
+  // and nudge them to log in rather than silently failing.
+  function handleToggleSave() {
+    const nextSaved = !isSaved;
+    setIsSaved(nextSaved);
+
+    startSaveTransition(async () => {
+      const result = await toggleSaveCampground(campgroundId);
+
+      if (result.error) {
+        setIsSaved(!nextSaved);
+        toast.error(result.error, {
+          action: {
+            label: "Login",
+            onClick: () => router.push("/login"),
+          },
+        });
+        return;
+      }
+
+      setIsSaved(result.saved);
+    });
+  }
+
+  async function handleShare() {
+    const url = window.location.href;
+    const shareData = { title, text: location, url };
+
+    if (navigator.share) {
+      try {
+        await navigator.share(shareData);
+      } catch {
+        // User closed the native share sheet — not worth surfacing an error.
+      }
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success("Link disalin ke clipboard");
+    } catch {
+      toast.error("Gagal menyalin link");
+    }
+  }
 
   return (
     <div className="w-full">
@@ -110,14 +169,23 @@ export function CampgroundDetailHero({
         <Button
           variant="ghost"
           size="icon"
+          onClick={handleToggleSave}
+          disabled={isSaving}
+          aria-pressed={isSaved}
           className="rounded-full text-forest-700 hover:bg-forest-50"
         >
-          <Heart className="h-5 w-5" />
-          <span className="sr-only">Simpan</span>
+          <Heart
+            className={cn(
+              "h-5 w-5 transition-colors",
+              isSaved && "fill-gold-400 text-gold-400"
+            )}
+          />
+          <span className="sr-only">{isSaved ? "Hapus dari simpanan" : "Simpan"}</span>
         </Button>
         <Button
           variant="ghost"
           size="icon"
+          onClick={handleShare}
           className="rounded-full text-forest-700 hover:bg-forest-50"
         >
           <Share2 className="h-5 w-5" />
